@@ -34,44 +34,75 @@ def haversine(lat1: np.ndarray, lon1: np.ndarray, lat2: np.ndarray, lon2: np.nda
     distance = R * c
     return distance
 
-def preproccessing_data(df : pd.DataFrame) -> np.ndarray:
-    longitude_a = df['pickup_longitude'].to_numpy()
-    latitude_a = df['pickup_latitude'].to_numpy()
-    longitude_b = df['dropoff_longitude'].to_numpy()
-    latitude_b = df['dropoff_latitude'].to_numpy()
+class preprocessor:
+    
+    @staticmethod
+    def add_manhattan_distance(df : pd.DataFrame):
 
-    great_circle_distance = pd.DataFrame(haversine(latitude_a, longitude_a, latitude_b, longitude_b))
-    manhattan_distance = pd.DataFrame(manhattan(latitude_a, longitude_a, latitude_b, longitude_b))
+        longitude_a = df['pickup_longitude'].to_numpy()
+        latitude_a = df['pickup_latitude'].to_numpy()
+        longitude_b = df['dropoff_longitude'].to_numpy()
+        latitude_b = df['dropoff_latitude'].to_numpy()
 
-    df.insert(loc=len(df.columns) - 1, column='great_circule_distance',
+        manhattan_distance = manhattan(latitude_a, longitude_a, latitude_b, longitude_b)
+
+        df.insert(loc=len(df.columns) - 1, column='manhattan_distance',
+        value=manhattan_distance)
+        return 
+    
+    @staticmethod
+    def add_haversine_distance(df : pd.DataFrame):
+        longitude_a = df['pickup_longitude'].to_numpy()
+        latitude_a = df['pickup_latitude'].to_numpy()
+        longitude_b = df['dropoff_longitude'].to_numpy()
+        latitude_b = df['dropoff_latitude'].to_numpy()
+
+        great_circle_distance = haversine(latitude_a, longitude_a, latitude_b, longitude_b)
+        
+        df.insert(loc=len(df.columns) - 1, column='great_circule_distance',
                     value=great_circle_distance)
-    df.insert(loc=len(df.columns) - 1, column='manhattan_distance',
-              value=manhattan_distance)
+        
+    @staticmethod  
+    def drop_columns(df: pd.DataFrame, *columns_names: str):
+        df.drop(columns=list(columns_names), inplace=True)
+
+    @staticmethod
+    def add_divided_date(df: pd.DataFrame):
+        """
+        This Function Seprate The DateTime With This Format 2016-06-08 07:36:19 to 
+        dayofweek  month  dayofyear
+            6        1       10
+        """
+        df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+        df.insert(loc=len(df.columns) - 1, column='dayofweek', value=df['pickup_datetime'].dt.dayofweek)
+        df.insert(loc=len(df.columns) - 1, column='month', value=df['pickup_datetime'].dt.month)
+        df.insert(loc=len(df.columns) - 1, column='hour', value=df['pickup_datetime'].dt.hour)
+        df.insert(loc=len(df.columns) - 1, column='dayofyear', value=df['pickup_datetime'].dt.dayofyear)
+
+    @staticmethod
+    def one_hot_encoding_store_and_fwd_flag(df : pd.DataFrame):
+        """
+        We Can Use Pandas pd.get_dummies() but the order of the columns will be spoiled
+        So We Can Make It Step By Step To Preserve The Columns Order
+        """
+        df['store_and_fwd_flag_Y'] = (df['store_and_fwd_flag'] == 'Y').astype(int)
+        df['store_and_fwd_flag_N'] = (df['store_and_fwd_flag'] == 'N').astype(int)
+        idx = df.columns.get_loc("store_and_fwd_flag") + 1
+        df.insert(idx, "store_and_fwd_flag_Y", df.pop("store_and_fwd_flag_Y"))
+        df.insert(idx + 1, "store_and_fwd_flag_N", df.pop("store_and_fwd_flag_N"))
+
+def preproccessing_data(df : pd.DataFrame) -> np.ndarray:
 
 
-    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+   preprocessor.add_haversine_distance(df)
+   preprocessor.add_manhattan_distance(df)
+   preprocessor.one_hot_encoding_store_and_fwd_flag(df)
+   preprocessor.add_divided_date(df)
+   preprocessor.drop_columns(df, 'id', 'store_and_fwd_flag', 'pickup_datetime')
 
-    df['store_and_fwd_flag_Y'] = (df['store_and_fwd_flag'] == 'Y').astype(int)
-    df['store_and_fwd_flag_N'] = (df['store_and_fwd_flag'] == 'N').astype(int)
-
-    idx = df.columns.get_loc("store_and_fwd_flag") + 1
-    df.insert(idx, "store_and_fwd_flag_Y", df.pop("store_and_fwd_flag_Y"))
-    df.insert(idx + 1, "store_and_fwd_flag_N", df.pop("store_and_fwd_flag_N"))
-
-    df.drop(columns=["store_and_fwd_flag"], inplace=True)
-
-    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
-
-
-    df.insert(loc=len(df.columns) - 1, column='dayofweek', value=df['pickup_datetime'].dt.dayofweek)
-    df.insert(loc=len(df.columns) - 1, column='month', value=df['pickup_datetime'].dt.month)
-    df.insert(loc=len(df.columns) - 1, column='hour', value=df['pickup_datetime'].dt.hour)
-    df.insert(loc=len(df.columns) - 1, column='dayofyear', value=df['pickup_datetime'].dt.dayofyear)
-
-
-    df.drop(columns=['id', 'pickup_datetime', 'hour'], inplace=True)
-    print(df)
-    return df.to_numpy()
+   print(df)
+   return df.to_numpy()
+   
 
 if __name__ == '__main__':
     df_train = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/train.csv")
