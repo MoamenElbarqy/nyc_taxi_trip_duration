@@ -34,112 +34,67 @@ def haversine(lat1: np.ndarray, lon1: np.ndarray, lat2: np.ndarray, lon2: np.nda
     distance = R * c
     return distance
 
-class preprocessor:
-    
-    @staticmethod
-    def add_manhattan_distance(df : pd.DataFrame):
-
-        longitude_a = df['pickup_longitude'].to_numpy()
-        latitude_a = df['pickup_latitude'].to_numpy()
-        longitude_b = df['dropoff_longitude'].to_numpy()
-        latitude_b = df['dropoff_latitude'].to_numpy()
-
-        manhattan_distance = manhattan(latitude_a, longitude_a, latitude_b, longitude_b)
-
-        df.insert(loc=len(df.columns) - 1, column='manhattan_distance',
-        value=manhattan_distance)
-        return 
-    
-    @staticmethod
-    def add_haversine_distance(df : pd.DataFrame):
-        longitude_a = df['pickup_longitude'].to_numpy()
-        latitude_a = df['pickup_latitude'].to_numpy()
-        longitude_b = df['dropoff_longitude'].to_numpy()
-        latitude_b = df['dropoff_latitude'].to_numpy()
-
-        great_circle_distance = haversine(latitude_a, longitude_a, latitude_b, longitude_b)
-        
-        df.insert(loc=len(df.columns) - 1, column='great_circule_distance',
-                    value=great_circle_distance)
-        
-    @staticmethod  
-    def drop_columns(df: pd.DataFrame, *columns_names: str):
-        df.drop(columns=list(columns_names), inplace=True)
-
-    @staticmethod
-    def add_divided_date(df: pd.DataFrame):
-        """
-        This Function Seprate The DateTime With This Format 2016-06-08 07:36:19 to 
-        dayofweek  month  dayofyear
-            6        1       10
-        """
-        df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
-        df.insert(loc=len(df.columns) - 1, column='dayofweek', value=df['pickup_datetime'].dt.dayofweek)
-        df.insert(loc=len(df.columns) - 1, column='month', value=df['pickup_datetime'].dt.month)
-        df.insert(loc=len(df.columns) - 1, column='hour', value=df['pickup_datetime'].dt.hour)
-        df.insert(loc=len(df.columns) - 1, column='dayofyear', value=df['pickup_datetime'].dt.dayofyear)
-
-    @staticmethod
-    def one_hot_encoding_store_and_fwd_flag(df : pd.DataFrame):
-        """
-        We Can Use Pandas pd.get_dummies() but the order of the columns will be spoiled
-        So We Can Make It Step By Step To Preserve The Columns Order
-        """
-        df['store_and_fwd_flag_Y'] = (df['store_and_fwd_flag'] == 'Y').astype(int)
-        df['store_and_fwd_flag_N'] = (df['store_and_fwd_flag'] == 'N').astype(int)
-        idx = df.columns.get_loc("store_and_fwd_flag") + 1
-        df.insert(idx, "store_and_fwd_flag_Y", df.pop("store_and_fwd_flag_Y"))
-        df.insert(idx + 1, "store_and_fwd_flag_N", df.pop("store_and_fwd_flag_N"))
-
 def preproccessing_data(df : pd.DataFrame) -> np.ndarray:
+    longitude_a = df['pickup_longitude'].to_numpy()
+    latitude_a = df['pickup_latitude'].to_numpy()
+    longitude_b = df['dropoff_longitude'].to_numpy()
+    latitude_b = df['dropoff_latitude'].to_numpy()
+
+    great_circle_distance = pd.DataFrame(haversine(latitude_a, longitude_a, latitude_b, longitude_b))
+    manhattan_distance = pd.DataFrame(manhattan(latitude_a, longitude_a, latitude_b, longitude_b))
+
+    df.insert(loc=len(df.columns) - 1, column='great_circule_distance',
+                    value=great_circle_distance)
+    df.insert(loc=len(df.columns) - 1, column='manhattan_distance',
+              value=manhattan_distance)
 
 
-   preprocessor.add_haversine_distance(df)
-   preprocessor.add_manhattan_distance(df)
-   preprocessor.one_hot_encoding_store_and_fwd_flag(df)
-   preprocessor.add_divided_date(df)
-   preprocessor.drop_columns(df, 'id', 'store_and_fwd_flag', 'pickup_datetime')
+    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
 
-   print(df)
-   return df.to_numpy()
-   
+    df['store_and_fwd_flag_Y'] = (df['store_and_fwd_flag'] == 'Y').astype(int)
+    df['store_and_fwd_flag_N'] = (df['store_and_fwd_flag'] == 'N').astype(int)
+
+    idx = df.columns.get_loc("store_and_fwd_flag") + 1
+    df.insert(idx, "store_and_fwd_flag_Y", df.pop("store_and_fwd_flag_Y"))
+    df.insert(idx + 1, "store_and_fwd_flag_N", df.pop("store_and_fwd_flag_N"))
+
+    df.drop(columns=["store_and_fwd_flag"], inplace=True)
+
+    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+
+
+    df.insert(loc=len(df.columns) - 1, column='dayofweek', value=df['pickup_datetime'].dt.dayofweek)
+    df.insert(loc=len(df.columns) - 1, column='month', value=df['pickup_datetime'].dt.month)
+    df.insert(loc=len(df.columns) - 1, column='hour', value=df['pickup_datetime'].dt.hour)
+    df.insert(loc=len(df.columns) - 1, column='dayofyear', value=df['pickup_datetime'].dt.dayofyear)
+
+
+    df.drop(columns=['id', 'pickup_datetime', 'hour'], inplace=True)
+    print(df)
+    return df.to_numpy()
 
 if __name__ == '__main__':
     df_train = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/train.csv")
     df_val = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/val.csv")
     df_test = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/test.csv")
 
-    model = Ridge(fit_intercept=True, alpha=1)
 
-    # --- Train ---
-    data_train = preproccessing_data(df_train)
+    model = Ridge(fit_intercept=True, alpha=1)
+    data = preproccessing_data(df_train)
+
     scaler = MinMaxScaler()
 
-    x_train = data_train[:, :-1]
-    y_train = np.log1p(data_train[:, -1].reshape(-1, 1))
+    x = data[:, : -1]
+    t = np.log1p(data[:, -1].reshape(-1 ,1))
 
-    x_train_scaled = scaler.fit_transform(x_train)
-    model.fit(x_train_scaled, y_train)
+    x_scaled = scaler.fit_transform(x)
+    model.fit(x_scaled, t)
 
-    train_pred = model.predict(x_train_scaled)
-    train_error = r2_score(y_train, train_pred)
+    train_pred = model.predict(x_scaled)
+    train_error = r2_score(t, train_pred)
+
     print(f"Train Error  {train_error}")
-
-    # --- Validation ---
-    data_val = preproccessing_data(df_val)
-
-    x_val = data_val[:, :-1]
-    y_val = np.log1p(data_val[:, -1].reshape(-1, 1))
-
-    # important: use transform not fit_transform
-    x_val_scaled = scaler.transform(x_val)
-
-    val_pred = model.predict(x_val_scaled)
-    val_error = r2_score(y_val, val_pred)
-    print(f"Validation Error  {val_error}")
-
 
     # without log target Train Error  0.005364337184089907
     # with log target Train Error  0.05518502575128714
     # when keeping outliers and didn't remove trips more than 1 day Train Error  0.32163572097904125
-
