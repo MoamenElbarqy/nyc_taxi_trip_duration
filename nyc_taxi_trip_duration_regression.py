@@ -121,7 +121,7 @@ if __name__ == '__main__':
     df_val = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/val.csv")
     df_test = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/test.csv")
 
-    model = Ridge(fit_intercept=True, alpha=0.01)
+    model = Ridge(fit_intercept=True, alpha=1)
 
     
     # Train 
