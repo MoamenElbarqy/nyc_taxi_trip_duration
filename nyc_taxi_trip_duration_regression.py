@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import r2_score
-
+import os
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 5)
 
@@ -117,9 +117,10 @@ def preproccessing_data(df : pd.DataFrame) -> pd.DataFrame:
     return df
     
 if __name__ == '__main__':
-    df_train = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/train.csv")
-    df_val = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/val.csv")
-    df_test = pd.read_csv("/home/moamen/data_sets/1 project-nyc-taxi-trip-duration/split/test.csv")
+    print(f"This is The Working Dir {os.getcwd()}")
+    df_train = pd.read_csv("datasets/train.csv")
+    df_val = pd.read_csv("datasets/val.csv")
+    df_test = pd.read_csv("datasets/test.csv")
 
     model = Ridge(fit_intercept=True, alpha=1)
 
